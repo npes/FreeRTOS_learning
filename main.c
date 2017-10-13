@@ -39,8 +39,8 @@ void ConfigureUART(void);
 void Task1 (void*);
 void Task2 (void*);
 
-xQueueHandle queue_handle = NULL; //queue
-xSemaphoreHandle gatekeeper = 0; //semaphore
+xQueueHandle queue_handle = NULL; //queue handle/name
+xSemaphoreHandle gatekeeper = 0; //semaphore handle/name
 
 int main(void) {
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
@@ -62,8 +62,8 @@ int main(void) {
     queue_handle = xQueueCreate(2, sizeof(int));
 
     // Create tasks
-    xTaskCreate(Task1, (const char*) "t1", 1024, NULL, 1, NULL);
-    xTaskCreate(Task2, (const char*) "t2", 1024, NULL, 5, NULL);
+    xTaskCreate(Task1, (const char*) "t1", 1024, NULL, 2, NULL);
+    xTaskCreate(Task2, (const char*) "t2", 1024, NULL, 1, NULL);
 
     vTaskStartScheduler();   //Start FreeRTOS!
 
@@ -110,39 +110,42 @@ void ConfigureUART(void)
 void Task1 (void *p) {
     int item = 0;
     while(1){
-        if (xSemaphoreTake(gatekeeper, 1000)) {
+        if (xSemaphoreTake(gatekeeper, 1000)) //mutex name, timeout
+        {
             UARTprintf("\nNow in task 1\n");
             long ok = xQueueSend(queue_handle, &item, 500); //(name of queue, item to send, time to wait if queue is full)
             xSemaphoreGive(gatekeeper);
             // ok ? UARTprintf("Item send to queue successfully") : UARTprintf("Failed to send item to queue");
 
             if (ok==true) {
-                UARTprintf("Item send to queue successfully\n");
+                UARTprintf("Item send to queue1 successfully\n");
+                item++;
             } else {
-                UARTprintf("Failed to send item to queue\n");
+                UARTprintf("Failed to send item to queue1\n");
             }
-
         }
         else {
             UARTprintf("\nTask 1 failed access");
         }
-        vTaskDelay(200); //delay task to not run before 1 second
+        vTaskDelay(1000); //delay task to not run before 1 second
     };
 };
 
 void Task2 (void *p) {
     int item = 0;
     while(1){
-        if (xSemaphoreTake(gatekeeper, 1000)) {
+        if (xSemaphoreTake(gatekeeper, 1000))
+        {
             UARTprintf("\nNow in task 2\n");
-            if (xQueueReceive(queue_handle, &item, 500)) {
-                UARTprintf("Task 2 got item from queue\n");
+            if (xQueueReceive(queue_handle, &item, 500)) //(name of queue, where to store receive item, how long to wait if queue is empty)
+            {
+                UARTprintf("Task 2 got item from queue1: %d\n", item);
             }
             xSemaphoreGive(gatekeeper);
         }
         else {
             UARTprintf("\nTask 2 failed access");
         }
-        vTaskDelay(200); //delay task to not run before 1 second
+        vTaskDelay(1000); //delay task to not run before 1 second
     };
 };
